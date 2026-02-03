@@ -9,10 +9,12 @@ const verifyToken = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = decoded.id; // Attach user ID to request for tracking
+    req.userRole = decoded.role || 'user'; // Attach role if present in token
     next();
   } catch (error) {
     res.status(401).json({ message: "Invalid or expired token." });
   }
 };
+
 
 module.exports = { verifyToken };
