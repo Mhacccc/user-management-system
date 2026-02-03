@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, Fragment } from "react";
 import { useRouter } from "next/navigation";
-import { getAuditLogs, removeToken } from "@/lib/api";
+import { getAuditLogs, removeToken, getUserSession } from "@/lib/api";
 import Sidebar from "@/components/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, } from "@/components/ui/card";
@@ -88,12 +88,19 @@ export default function AuditLogsPage() {
 
   const [expanded, setExpanded] = useState({});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState({ id: null, role: 'user' });
   const router = useRouter();
 
   useEffect(() => {
     const fetch = async () => {
       setLoading(true);
       try {
+        // Fetch current session user
+        const sessionRes = await getUserSession();
+        if (sessionRes.data?.user) {
+          setCurrentUser(sessionRes.data.user);
+        }
+
         const res = await getAuditLogs();
         const sorted = (res.data || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setLogs(sorted);
@@ -183,7 +190,7 @@ export default function AuditLogsPage() {
     <div className="min-h-[calc(100vh-64px)] bg-muted/30 px-4 py-8">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-[240px_1fr] lg:grid-cols-[260px_1fr] gap-8">
         <div>
-          <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+          <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} userRole={currentUser?.role} />
         </div>
 
         <div className="space-y-6">

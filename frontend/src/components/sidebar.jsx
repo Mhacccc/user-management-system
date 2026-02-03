@@ -2,7 +2,7 @@ import Link from "next/link";
 import { logout } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
-export default function Sidebar({ isOpen, onClose }) {
+export default function Sidebar({ isOpen, onClose, userRole }) {
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -68,13 +68,28 @@ export default function Sidebar({ isOpen, onClose }) {
           >
             Dashboard
           </Link>
-          <Link
-            href="/auditlogs"
-            className="px-3 py-2 rounded-md hover:bg-accent/40"
-            onClick={onClose}
-          >
-            Audit Logs
-          </Link>
+
+          {/* Admin-only: Audit Logs */}
+          {userRole === 'admin' && (
+            <Link
+              href="/auditlogs"
+              className="px-3 py-2 rounded-md hover:bg-accent/40"
+              onClick={onClose}
+            >
+              Audit Logs
+            </Link>
+          )}
+
+          {/* Regular users: My Activity */}
+          {userRole === 'user' && (
+            <Link
+              href="/my-activity"
+              className="px-3 py-2 rounded-md hover:bg-accent/40"
+              onClick={onClose}
+            >
+              My Activity
+            </Link>
+          )}
           <Link
             href="/dashboard/settings"
             className="px-3 py-2 rounded-md hover:bg-accent/40"

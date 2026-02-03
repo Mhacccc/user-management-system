@@ -82,6 +82,10 @@ export async function getAuditLogs() {
   return api.get('/auditlogs');
 }
 
+export async function getMyActivity() {
+  return api.get('/auditlogs/my-activity');
+}
+
 export async function updateUser(id, data) {
   return api.put(`/users/${id}`, data);
 }

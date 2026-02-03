@@ -116,7 +116,7 @@ export default function DashboardPage() {
     <div className="min-h-[calc(100vh-64px)] bg-muted px-4 py-8">
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8">
         <div>
-          <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+          <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} userRole={currentUser?.role} />
         </div>
 
         <div>
