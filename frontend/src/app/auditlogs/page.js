@@ -314,8 +314,10 @@ export default function AuditLogsPage() {
                                 </td>
                                 <td className="px-4 py-3">
                                   <div className="flex flex-col max-w-[200px]">
-                                    <span className="font-medium text-foreground text-xs sm:text-sm truncate" title={l.target?.name}>{l.target?.name || '—'}</span>
-                                    <span className="text-[10px] text-muted-foreground truncate" title={l.target?.email}>{l.target?.email || l.target?._id || '—'}</span>
+                                    <span className="font-medium ...">
+                                      {l.target?.name || l.details?.deleted?.name || l.details?.created?.name || '—'}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground truncate" title={l.target?.email}>{l.target?.email || l.target?._id || l.details?.deleted?.email || l.details?.created?.email || '—'}</span>
                                   </div>
                                 </td>
                                 <td className="px-4 py-3 text-right">
