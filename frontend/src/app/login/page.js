@@ -10,10 +10,10 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import  Link  from "next/link";
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { login, setToken } from "@/lib/api";
+import { login } from "@/lib/api";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -26,9 +26,8 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const res = await login({ email, password });
-      const token = res.data?.token;
-      if (token) setToken(token);
+      await login({ email, password });
+      // Token is now set in HTTP-only cookie by the API route
       setLoading(false);
       router.push("/dashboard");
     } catch (err) {

@@ -190,7 +190,7 @@ export default function DashboardPage() {
                         <th className="py-3 text-sm text-muted-foreground">Name</th>
                         <th className="py-3 text-sm text-muted-foreground">Email</th>
                         <th className="py-3 text-sm text-muted-foreground">Role</th>
-                        <th className="py-3 text-sm text-muted-foreground">Actions</th>
+                        {currentUser?.role === 'admin' && <th className="py-3 text-sm text-muted-foreground">Actions</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y">
@@ -221,7 +221,7 @@ export default function DashboardPage() {
                                 <Button size="sm" variant="destructive" onClick={() => handleDelete(u._id)}>Delete</Button>
                               </div>
                             )}
-                            {currentUser?.role !== 'admin' && currentUser?.id === u._id && (
+                            {currentUser?.role === 'admin' && currentUser?.id === u._id && (
                               <Button size="sm" onClick={() => handleEdit(u._id)}>Edit</Button>
                             )}
                           </td>
