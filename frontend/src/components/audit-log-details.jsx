@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
 
 function formatDate(iso) {
     try {
@@ -29,6 +30,154 @@ function FieldDiff({ label, before, after }) {
             <div className="text-green-600 bg-green-500/10 px-2 py-0.5 rounded w-fit h-fit text-xs font-medium">
                 {String(after ?? '—')}
             </div>
+        </div>
+    );
+}
+
+// Helper function to format JSON with proper indentation
+function formatJSON(obj) {
+    return JSON.stringify(obj, null, 2);
+}
+
+// Helper to classify each line as added, removed, or unchanged
+function getDiffLines(beforeObj, afterObj) {
+    const beforeLines = formatJSON(beforeObj).split('\n');
+    const afterLines = formatJSON(afterObj).split('\n');
+
+    const maxLines = Math.max(beforeLines.length, afterLines.length);
+    const diffLines = [];
+
+    for (let i = 0; i < maxLines; i++) {
+        const beforeLine = beforeLines[i] || '';
+        const afterLine = afterLines[i] || '';
+
+        let status = 'unchanged';
+        if (beforeLine !== afterLine) {
+            if (!beforeLine) status = 'added';
+            else if (!afterLine) status = 'removed';
+            else status = 'modified';
+        }
+
+        diffLines.push({
+            lineNum: i + 1,
+            before: beforeLine,
+            after: afterLine,
+            status
+        });
+    }
+
+    return diffLines;
+}
+
+// DiffLine component for rendering individual lines
+function DiffLine({ lineNum, before, after, status }) {
+    const getLineStyle = (side) => {
+        if (status === 'unchanged') {
+            return 'bg-muted/10 text-muted-foreground/70';
+        }
+        if (status === 'modified') {
+            return side === 'before'
+                ? 'bg-red-50 dark:bg-red-950/20 text-red-900 dark:text-red-300 border-l-2 border-red-500'
+                : 'bg-green-50 dark:bg-green-950/20 text-green-900 dark:text-green-300 border-l-2 border-green-500';
+        }
+        if (status === 'removed' && side === 'before') {
+            return 'bg-red-50 dark:bg-red-950/20 text-red-900 dark:text-red-300 border-l-2 border-red-500';
+        }
+        if (status === 'added' && side === 'after') {
+            return 'bg-green-50 dark:bg-green-950/20 text-green-900 dark:text-green-300 border-l-2 border-green-500';
+        }
+        return 'bg-muted/5';
+    };
+
+    return (
+        <div className="grid grid-cols-2 gap-px text-xs font-mono">
+            <div className={`flex ${getLineStyle('before')} px-2 py-0.5`}>
+                <span className="text-muted-foreground/40 select-none mr-3 w-8 text-right">{lineNum}</span>
+                <span className="flex-1 whitespace-pre">{before || ' '}</span>
+            </div>
+            <div className={`flex ${getLineStyle('after')} px-2 py-0.5`}>
+                <span className="text-muted-foreground/40 select-none mr-3 w-8 text-right">{lineNum}</span>
+                <span className="flex-1 whitespace-pre">{after || ' '}</span>
+            </div>
+        </div>
+    );
+}
+
+// Main DiffViewer component
+function DiffViewer({ before, after }) {
+    const [showRawJSON, setShowRawJSON] = useState(false);
+    const diffLines = getDiffLines(before, after);
+
+    // Count changes
+    const changes = diffLines.filter(line => line.status !== 'unchanged').length;
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center justify-between">
+                <div className="text-xs text-muted-foreground">
+                    {changes} {changes === 1 ? 'line' : 'lines'} changed
+                </div>
+                <button
+                    onClick={() => setShowRawJSON(!showRawJSON)}
+                    className="text-xs text-primary hover:underline"
+                >
+                    {showRawJSON ? 'Show Diff View' : 'Show Raw JSON'}
+                </button>
+            </div>
+
+            {showRawJSON ? (
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <div className="text-xs text-muted-foreground mb-1 font-medium">Before</div>
+                        <SmallJSON object={before} />
+                    </div>
+                    <div>
+                        <div className="text-xs text-muted-foreground mb-1 font-medium">After</div>
+                        <SmallJSON object={after} />
+                    </div>
+                </div>
+            ) : (
+                <div className="border rounded-lg overflow-hidden bg-background">
+                    {/* Header */}
+                    <div className="grid grid-cols-2 gap-px bg-muted/30 border-b">
+                        <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
+                            Before
+                        </div>
+                        <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
+                            After
+                        </div>
+                    </div>
+
+                    {/* Diff Lines */}
+                    <div className="max-h-96 overflow-auto">
+                        {diffLines.map((line, idx) => (
+                            <DiffLine
+                                key={idx}
+                                lineNum={line.lineNum}
+                                before={line.before}
+                                after={line.after}
+                                status={line.status}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Legend */}
+                    <div className="border-t bg-muted/20 px-3 py-2 flex items-center gap-4 text-xs">
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 bg-red-100 dark:bg-red-950/30 border border-red-500 rounded"></div>
+                            <span className="text-muted-foreground">Removed</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 bg-green-100 dark:bg-green-950/30 border border-green-500 rounded"></div>
+                            <span className="text-muted-foreground">Added</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 bg-muted/20 border border-border rounded"></div>
+                            <span className="text-muted-foreground">Unchanged</span>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -108,7 +257,7 @@ export default function AuditLogDetails({ details, action }) {
         );
     }
 
-    // Case: Update (Before vs After)
+    // Case: Update (Before vs After) - ENHANCED WITH DIFF VIEWER
     if (details.before || details.after) {
         const before = details.before || {};
         const after = details.after || {};
@@ -120,10 +269,11 @@ export default function AuditLogDetails({ details, action }) {
         );
 
         return (
-            <div className="space-y-3 bg-card border rounded-lg p-4 shadow-sm">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Changes</h4>
+            <div className="space-y-4 bg-card border rounded-lg p-4 shadow-sm">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Changes</h4>
 
-                {changedKeys.length > 0 ? (
+                {/* Field-level summary */}
+                {changedKeys.length > 0 && (
                     <div className="rounded-md border bg-background/50">
                         <div className="grid grid-cols-[100px_1fr_1fr] gap-2 px-3 py-2 bg-muted/30 text-xs font-semibold text-muted-foreground border-b">
                             <div>Field</div>
@@ -136,19 +286,14 @@ export default function AuditLogDetails({ details, action }) {
                             ))}
                         </div>
                     </div>
-                ) : (
-                    <div className="text-sm text-muted-foreground">No specific field changes detected (possibly internal update).</div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                    <div>
-                        <div className="text-xs text-muted-foreground mb-1">Full state before</div>
-                        <SmallJSON object={before} />
-                    </div>
-                    <div>
-                        <div className="text-xs text-muted-foreground mb-1">Full state after</div>
-                        <SmallJSON object={after} />
-                    </div>
+                {/* Advanced Diff Viewer */}
+                <div>
+                    <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Detailed Comparison
+                    </h5>
+                    <DiffViewer before={before} after={after} />
                 </div>
             </div>
         );
