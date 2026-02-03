@@ -97,24 +97,67 @@ updateUser = async (req, res) => {
   }
 };
 
+const AuditLog = require('../models/AuditLog');
+
+// ... (other functions: getAllUsers, getUser, createUser, updateUser)
+
 deleteUser = async (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const logFile = path.join(__dirname, '../backend-debug.log');
+
+  const log = (msg) => {
+    try {
+      fs.appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`);
+    } catch (e) { console.error('Log failed', e); }
+  };
+
+  log(`[DELETE USER] Request received for ID: ${req.params.id}`);
+  log(`[DELETE USER] Admin ID: ${req.userId}, Role: ${req.userRole}`);
+
   try {
-    if (req.userRole !== 'admin') return res.status(403).json({ message: 'Admin required to delete users.' });
+    if (req.userRole !== 'admin') {
+      log(`[DELETE USER] Unauthorized: Role is ${req.userRole}`);
+      return res.status(403).json({ message: 'Admin required to delete users.' });
+    }
+
+    // Check for valid ObjectId
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      log(`[DELETE USER] Invalid ID format: ${req.params.id}`);
+      return res.status(400).json({ message: "Invalid User ID" });
+    }
+
     const deleted = await User.findByIdAndDelete(req.params.id).select('-password');
 
-    // Audit
-    const AuditLog = require('../models/AuditLog');
-    await AuditLog.create({
-      action: 'delete',
-      target: req.params.id,
-      actor: req.userId,
-      actorType: 'admin',
-      message: `User deleted by admin ${req.userId}`,
-      details: { deleted }
-    });
+    if (!deleted) {
+      log(`[DELETE USER] User not found in DB: ${req.params.id}`);
+      return res.status(404).json({ message: "User not found" });
+    }
 
+    log(`[DELETE USER] User deleted from DB. Creating AuditLog...`);
+
+    // Audit
+    try {
+      await AuditLog.create({
+        action: 'delete',
+        target: req.params.id,
+        actor: req.userId,
+        actorType: 'admin',
+        message: `User deleted by admin ${req.userId}`,
+        details: { deleted }
+      });
+      log(`[DELETE USER] AuditLog created successfully.`);
+    } catch (auditErr) {
+      log(`[DELETE USER] AuditLog creation FAILED: ${auditErr.message}`);
+      console.error("[DELETE USER] Audit Log Failed:", auditErr);
+    }
+
+    log(`[DELETE USER] Success - Sending 200`);
     res.json({ message: "User deleted" });
   } catch (err) {
+    log(`[DELETE USER] CRITICAL ERROR: ${err.message}\n${err.stack}`);
+    console.error(`[DELETE USER] Error:`, err);
     res.status(500).json({ error: err.message });
   }
 };

@@ -48,6 +48,10 @@ export async function logout() {
   return api.post("/logout");
 }
 
+export async function getUserSession() {
+  return api.get("/user");
+}
+
 // Helper to remove token locally is no longer needed but we might want a 'logout' function
 export function setToken(token) {
   // No-op or removed

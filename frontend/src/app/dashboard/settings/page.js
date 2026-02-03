@@ -2,24 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getUser, updateUser, removeToken } from "@/lib/api";
+import { getUser, updateUser, getUserSession } from "@/lib/api";
 import Sidebar from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-// Helper to decode JWT
-const parseJwt = (token) => {
-    try {
-        const payload = token.split('.')[1];
-        const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-        return JSON.parse(json);
-    } catch (e) {
-        return null;
-    }
-};
 
 export default function SettingsPage() {
     const router = useRouter();
@@ -38,23 +27,23 @@ export default function SettingsPage() {
     useEffect(() => {
         const init = async () => {
             try {
-                const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-                if (!token) {
-                    router.push("/login");
+                // Fetch current user from session
+                const sessionRes = await getUserSession();
+                const sessionUser = sessionRes.data?.user;
+
+                if (!sessionUser) {
+                    router.push("/login"); // Middleware should handle this, but double check
                     return;
                 }
-                const decoded = parseJwt(token);
-                if (!decoded?.id && !decoded?.sub) throw new Error("Invalid token");
 
-                const id = decoded.id || decoded.sub;
-                setUserId(id);
+                setUserId(sessionUser.id);
 
-                const res = await getUser(id);
+                // Fetch full profile data
+                const res = await getUser(sessionUser.id);
                 setProfile(res.data);
             } catch (err) {
                 const status = err?.response?.status;
                 if (status === 401) {
-                    removeToken();
                     router.push("/login");
                     return;
                 }
@@ -64,6 +53,9 @@ export default function SettingsPage() {
             }
         };
 
+
+
+        // Re-implementing correctly below using imports
         init();
     }, [router]);
 

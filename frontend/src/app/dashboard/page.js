@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import api, { getUsers, removeToken, deleteUser, createUser } from "@/lib/api";
+import api, { getUsers, deleteUser, createUser, getUserSession, logout } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,45 +22,42 @@ export default function DashboardPage() {
   const [query, setQuery] = useState('');
   const router = useRouter();
 
-  const parseJwt = (token) => {
-    try {
-      const payload = token.split('.')[1];
-      const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-      return JSON.parse(json);
-    } catch (e) {
-      return null;
-    }
-  };
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       setLoading(true);
       try {
-        // derive current user from token (client-side decode only)
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-        const decoded = token ? parseJwt(token) : null;
-        setCurrentUser({ id: decoded?.id || decoded?.sub || null, role: decoded?.role || 'user' });
+        // Fetch current session user
+        const sessionRes = await getUserSession();
+        if (sessionRes.data?.user) {
+          setCurrentUser(sessionRes.data.user);
+        }
+
+        // Fetch users
         const res = await getUsers();
         setUsers(res.data || []);
       } catch (err) {
         const status = err?.response?.status;
         if (status === 401) {
-          removeToken();
           router.push("/login");
           return;
         }
         setError(err?.response?.data?.error || err?.message || "Failed to load users");
-        console.error("Error fetching users:", err);
+        console.error("Error fetching data:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUsers();
+    fetchData();
   }, [router]);
 
-  const handleLogout = () => {
-    removeToken();
-    router.push("/login");
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push("/login"); // Force navigation to login after logout
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
   };
 
   const handleEdit = (id) => {
@@ -212,18 +209,16 @@ export default function DashboardPage() {
                           </td>
                           <td className="py-4 text-sm text-muted-foreground">{u.email || "—"}</td>
                           <td className="py-4">
-                            <Badge variant={u.role === 'admin' ? 'primary' : 'default'}>{u.role}</Badge>
+                            <Badge variant={u.role === 'admin' ? 'default' : 'primary'}>{u.role}</Badge>
                           </td>
                           <td className="py-4">
                             {currentUser?.role === 'admin' && (
                               <div className="flex gap-2">
-                                <Button size="sm" onClick={() => handleEdit(u._id)}>Edit</Button>
-                                <Button size="sm" variant="destructive" onClick={() => handleDelete(u._id)}>Delete</Button>
+                                {currentUser?.id !== u._id && <Button size="sm" onClick={() => handleEdit(u._id)}>Edit</Button>}
+                                {currentUser?.id !== u._id && <Button size="sm" variant="destructive" onClick={() => handleDelete(u._id)}>Delete</Button>}
                               </div>
                             )}
-                            {currentUser?.role === 'admin' && currentUser?.id === u._id && (
-                              <Button size="sm" onClick={() => handleEdit(u._id)}>Edit</Button>
-                            )}
+
                           </td>
                         </tr>
                       ))}

@@ -2,23 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { getUser, updateUser, removeToken } from "@/lib/api";
+import { getUser, updateUser, getUserSession } from "@/lib/api";
 import Sidebar from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-
-// Decodes JWT (client-side only for UI logic)
-const parseJwt = (token) => {
-    try {
-        const payload = token.split('.')[1];
-        const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-        return JSON.parse(json);
-    } catch (e) {
-        return null;
-    }
-};
 
 export default function EditUserPage() {
     const router = useRouter();
@@ -32,20 +21,22 @@ export default function EditUserPage() {
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-                if (!token) {
+                // Get current user session
+                const sessionRes = await getUserSession();
+                const sessionUser = sessionRes.data?.user;
+
+                if (!sessionUser) {
                     router.push("/login");
                     return;
                 }
-                const decoded = parseJwt(token);
-                setCurrentUser({ id: decoded?.id || decoded?.sub, role: decoded?.role });
+                setCurrentUser(sessionUser);
 
+                // Get target user to edit
                 const res = await getUser(params.id);
                 setUser(res.data);
             } catch (err) {
                 const status = err?.response?.status;
                 if (status === 401) {
-                    removeToken();
                     router.push("/login");
                     return;
                 }

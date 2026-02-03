@@ -18,6 +18,9 @@ async function proxyRequest(request, { params }) {
     const backendPath = path.join("/");
     const url = `${BACKEND_URL}/api/${backendPath}${queryString}`;
 
+    console.log(`[PROXY] Method: ${request.method}`);
+    console.log(`[PROXY] Target URL: ${url}`);
+
     const method = request.method;
 
     // Forward Body if not GET
@@ -31,17 +34,22 @@ async function proxyRequest(request, { params }) {
         }
     }
 
+    const axiosConfig = {
+        method,
+        url,
+        headers: {
+            Authorization: `Bearer ${session.token}`,
+        },
+        validateStatus: () => true,
+    };
+
+    if (body) {
+        axiosConfig.data = body;
+        axiosConfig.headers["Content-Type"] = "application/json";
+    }
+
     try {
-        const response = await axios({
-            method,
-            url,
-            data: body,
-            headers: {
-                Authorization: `Bearer ${session.token}`,
-                "Content-Type": "application/json",
-            },
-            validateStatus: () => true, // resolve promise for all status codes
-        });
+        const response = await axios(axiosConfig);
 
         return Response.json(response.data, { status: response.status });
     } catch (error) {
