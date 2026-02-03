@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import api, { getUsers, deleteUser, createUser, getUserSession, logout } from "@/lib/api";
+import api, { getUsers, deleteUser, createUser, getUserSession, logout, getDashboardStats } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Sidebar from "@/components/sidebar";
 import { Badge } from "@/components/ui/badge";
+import MetricCard from "@/components/metric-card";
+import EmptyState from "@/components/empty-state";
 
 export default function DashboardPage() {
   const [users, setUsers] = useState([]);
@@ -20,11 +22,15 @@ export default function DashboardPage() {
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [query, setQuery] = useState('');
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setStatsLoading(true);
       try {
         // Fetch current session user
         const sessionRes = await getUserSession();
@@ -32,9 +38,14 @@ export default function DashboardPage() {
           setCurrentUser(sessionRes.data.user);
         }
 
-        // Fetch users
-        const res = await getUsers();
-        setUsers(res.data || []);
+        // Fetch users and stats concurrently
+        const [usersRes, statsRes] = await Promise.all([
+          getUsers(),
+          getDashboardStats()
+        ]);
+
+        setUsers(usersRes.data || []);
+        setStats(statsRes.data || null);
       } catch (err) {
         const status = err?.response?.status;
         if (status === 401) {
@@ -45,6 +56,7 @@ export default function DashboardPage() {
         console.error("Error fetching data:", err);
       } finally {
         setLoading(false);
+        setStatsLoading(false);
       }
     };
 
@@ -112,14 +124,40 @@ export default function DashboardPage() {
     <div className="min-h-[calc(100vh-64px)] bg-muted px-4 py-8">
       <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8">
         <div>
-          <Sidebar />
+          <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
         </div>
 
         <div>
+          {/* Header with hamburger menu */}
           <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-semibold">Dashboard</h1>
-              <p className="text-sm text-muted-foreground mt-1">Manage users, roles and access.</p>
+            <div className="flex items-center gap-3">
+              {/* Hamburger menu button for mobile */}
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden text-foreground hover:text-foreground/80"
+                aria-label="Open menu"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+
+              <div>
+                <h1 className="text-2xl font-semibold">Dashboard</h1>
+                <p className="text-sm text-muted-foreground mt-1">Manage users, roles and access.</p>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
@@ -127,12 +165,76 @@ export default function DashboardPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search users..."
-                className="rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50"
+                className="hidden sm:block rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50"
               />
 
               {currentUser?.role === 'admin' && <Button onClick={() => setShowAddModal(true)}>Add User</Button>}
               <Button variant="ghost" onClick={handleLogout}>Logout</Button>
             </div>
+          </div>
+
+          {/* Metric Cards */}
+          {!statsLoading && stats && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <MetricCard
+                title="Total Users"
+                value={stats.totalUsers}
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                }
+              />
+              <MetricCard
+                title="Admins"
+                value={stats.adminCount}
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                    <path d="M2 17l10 5 10-5" />
+                    <path d="M2 12l10 5 10-5" />
+                  </svg>
+                }
+              />
+              <MetricCard
+                title="Users"
+                value={stats.userCount}
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                }
+              />
+              <MetricCard
+                title="New (24h)"
+                value={stats.newUsers}
+                trend={`${stats.recentActivity} recent activities`}
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <line x1="19" y1="8" x2="19" y2="14" />
+                    <line x1="22" y1="11" x2="16" y2="11" />
+                  </svg>
+                }
+              />
+            </div>
+          )}
+
+          {/* Mobile search bar */}
+          <div className="sm:hidden mb-4">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search users..."
+              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50"
+            />
           </div>
 
           {showAddModal && (
@@ -193,7 +295,14 @@ export default function DashboardPage() {
                     <tbody className="divide-y">
                       {filtered.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="py-8 text-center text-sm text-muted-foreground">No users found.</td>
+                          <td colSpan={4}>
+                            <EmptyState
+                              title="No users found"
+                              description={users.length === 0 ? "Get started by creating your first user account." : "Try adjusting your search query."}
+                              action={users.length === 0 && currentUser?.role === 'admin' ? "Create your first user" : null}
+                              onAction={users.length === 0 && currentUser?.role === 'admin' ? () => setShowAddModal(true) : null}
+                            />
+                          </td>
                         </tr>
                       )}
                       {filtered.map((u) => (

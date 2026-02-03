@@ -1,4 +1,47 @@
 const User = require('../models/User');
+const AuditLog = require('../models/AuditLog');
+
+getDashboardStats = async (req, res) => {
+  try {
+    console.log('[STATS] Fetching dashboard stats...');
+
+    // Calculate 24 hours ago
+    const yesterday = new Date();
+    yesterday.setHours(yesterday.getHours() - 24);
+    console.log('[STATS] Yesterday:', yesterday);
+
+    // Get all users (excluding soft-deleted if applicable)
+    const allUsers = await User.find().select('-password');
+    console.log('[STATS] Found users:', allUsers.length);
+
+    // Calculate metrics
+    const totalUsers = allUsers.length;
+    const adminCount = allUsers.filter(u => u.role === 'admin').length;
+    const userCount = allUsers.filter(u => u.role === 'user').length;
+    const newUsers = allUsers.filter(u => new Date(u.createdAt) > yesterday).length;
+    console.log('[STATS] Metrics calculated:', { totalUsers, adminCount, userCount, newUsers });
+
+    // Get recent activity from audit logs
+    const recentActivity = await AuditLog.countDocuments({
+      createdAt: { $gt: yesterday }
+    });
+    console.log('[STATS] Recent activity:', recentActivity);
+
+    const response = {
+      totalUsers,
+      adminCount,
+      userCount,
+      newUsers,
+      recentActivity
+    };
+    console.log('[STATS] Sending response:', response);
+    res.json(response);
+  } catch (err) {
+    console.error('[STATS] ERROR:', err);
+    console.error('[STATS] Error stack:', err.stack);
+    res.status(500).json({ error: err.message });
+  }
+};
 
 getAllUsers = async (req, res) => {
   try {
@@ -97,8 +140,6 @@ updateUser = async (req, res) => {
   }
 };
 
-const AuditLog = require('../models/AuditLog');
-
 // ... (other functions: getAllUsers, getUser, createUser, updateUser)
 
 deleteUser = async (req, res) => {
@@ -163,6 +204,7 @@ deleteUser = async (req, res) => {
 };
 
 module.exports = {
+  getDashboardStats,
   getAllUsers,
   getUser,
   createUser,

@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { getAllUsers, getUser, createUser, updateUser, deleteUser } = require('../controllers/userController');
+const { getDashboardStats, getAllUsers, getUser, createUser, updateUser, deleteUser } = require('../controllers/userController');
 const { verifyToken } = require('../middleware/authMiddleware');
 
 router.use(verifyToken); // Protect all routes in this file
 
+router.get('/stats', getDashboardStats);
 router.get('/', getAllUsers);
 router.get('/:id', getUser);
 router.post('/', createUser);

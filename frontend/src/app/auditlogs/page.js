@@ -87,6 +87,7 @@ export default function AuditLogsPage() {
   const itemsPerPage = 10;
 
   const [expanded, setExpanded] = useState({});
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -182,14 +183,39 @@ export default function AuditLogsPage() {
     <div className="min-h-[calc(100vh-64px)] bg-muted/30 px-4 py-8">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-[240px_1fr] lg:grid-cols-[260px_1fr] gap-8">
         <div>
-          <Sidebar />
+          <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
         </div>
 
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">Audit Logs</h1>
-              <p className="text-muted-foreground mt-1">Comprehensive timeline of system activities.</p>
+            <div className="flex items-center gap-3">
+              {/* Hamburger menu button for mobile */}
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden text-foreground hover:text-foreground/80"
+                aria-label="Open menu"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Audit Logs</h1>
+                <p className="text-muted-foreground mt-1">Comprehensive timeline of system activities.</p>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0} className="gap-2">

@@ -51,10 +51,16 @@ async function proxyRequest(request, { params }) {
     try {
         const response = await axios(axiosConfig);
 
+        console.log(`[PROXY] Response status: ${response.status}`);
+        if (response.status >= 400) {
+            console.error(`[PROXY] Error response:`, response.data);
+        }
+
         return Response.json(response.data, { status: response.status });
     } catch (error) {
-        console.error("Proxy Error:", error);
-        return Response.json({ error: "Proxy Error" }, { status: 500 });
+        console.error("[PROXY] Axios Error:", error.message);
+        console.error("[PROXY] Error details:", error.response?.data || error);
+        return Response.json({ error: "Proxy Error", details: error.message }, { status: 500 });
     }
 }
 

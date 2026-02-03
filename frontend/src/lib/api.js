@@ -70,6 +70,10 @@ export async function getUsers() {
   return api.get("/users");
 }
 
+export async function getDashboardStats() {
+  return api.get("/users/stats");
+}
+
 export async function createUser(data) {
   return api.post('/users', data);
 }
