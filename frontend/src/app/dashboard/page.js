@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import api, { getUsers, deleteUser, createUser, getUserSession, logout, getDashboardStats } from "@/lib/api";
+import { getUsers, deleteUser, createUser, getUserSession, getDashboardStats } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,14 +63,6 @@ export default function DashboardPage() {
     fetchData();
   }, [router]);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      router.push("/login"); // Force navigation to login after logout
-    } catch (err) {
-      console.error("Logout failed", err);
-    }
-  };
 
   const handleEdit = (id) => {
     router.push(`/dashboard/edit/${id}`);
@@ -160,17 +152,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search users..."
-                className="hidden sm:block rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50"
-              />
 
-              {currentUser?.role === 'admin' && <Button onClick={() => setShowAddModal(true)}>Add User</Button>}
-              <Button variant="ghost" onClick={handleLogout}>Logout</Button>
-            </div>
           </div>
 
           {/* Metric Cards */}
@@ -275,7 +257,20 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Users</CardTitle>
+
+              <div className="flex flex-row justify-between items-center gap-3">
+                <CardTitle>Users</CardTitle>
+                <div className="flex flex-row justify-end items-center gap-3">
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search users..."
+                    className="hidden sm:block rounded-md border border-input bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50"
+                  />
+                  {currentUser?.role === 'admin' && <Button onClick={() => setShowAddModal(true)}>Add User</Button>}
+                </div>
+
+              </div>
             </CardHeader>
             <CardContent>
               {loading && <p>Loading users...</p>}

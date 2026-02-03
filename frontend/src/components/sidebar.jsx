@@ -1,6 +1,19 @@
 import Link from "next/link";
+import { logout } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 export default function Sidebar({ isOpen, onClose }) {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      router.push("/login"); // Force navigation to login after logout
+    } catch (err) {
+      console.error("Logout failed", err);
+    }
+  };
+
   return (
     <>
       {/* Mobile overlay */}
@@ -69,6 +82,12 @@ export default function Sidebar({ isOpen, onClose }) {
           >
             Settings
           </Link>
+          <button
+            onClick={handleLogout}
+            className="px-3 py-2 rounded-md hover:bg-accent/40 text-left cursor-pointer"
+          >
+            Logout
+          </button>
         </nav>
 
         <div className="mt-auto text-xs text-muted-foreground">© {new Date().getFullYear()} — Built with care</div>
