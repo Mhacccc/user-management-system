@@ -12,13 +12,20 @@ exports.signup = async (req, res) => {
     user.createdBy = user._id;
     await user.save();
 
-    // create audit log (self registration)
+    // create audit log (self registration) with details
     await AuditLog.create({
       action: 'create',
       target: user._id,
       actor: user._id,
       actorType: 'self',
-      message: 'User self-registered'
+      message: 'User self-registered',
+      details: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        _id: user._id,
+        createdAt: user.createdAt
+      }
     });
 
     res.status(201).json({ message: "User created successfully" });
@@ -28,11 +35,29 @@ exports.signup = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  const { email } = req.body;
-  const user = await User.findOne({ email });
-  if (!user) {
-    return res.status(401).json({ message: "Invalid credentials" });
+  try {
+    const { email, password } = req.body;
+
+    // Check if email and password are provided
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Verify password using bcrypt
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
-  res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
 };

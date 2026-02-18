@@ -88,8 +88,19 @@ export default function AuditLogsPage() {
 
   const [expanded, setExpanded] = useState({});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState({ id: null, role: 'user' });
+  const [currentUser, setCurrentUser] = useState({ id: null, role: null });
   const router = useRouter();
+
+  // Load cached role on mount to avoid hydration mismatch
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const cachedRole = localStorage.getItem('userRole');
+      const cachedId = localStorage.getItem('userId');
+      if (cachedRole && !currentUser.role) {
+        setCurrentUser({ id: cachedId || null, role: cachedRole });
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const fetch = async () => {
@@ -99,6 +110,9 @@ export default function AuditLogsPage() {
         const sessionRes = await getUserSession();
         if (sessionRes.data?.user) {
           setCurrentUser(sessionRes.data.user);
+          // Cache user role in localStorage
+          localStorage.setItem('userRole', sessionRes.data.user.role);
+          localStorage.setItem('userId', sessionRes.data.user.id);
         }
 
         const res = await getAuditLogs();
@@ -188,7 +202,7 @@ export default function AuditLogsPage() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-muted/30 px-4 py-8">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-[240px_1fr] lg:grid-cols-[260px_1fr] gap-8">
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8">
         <div>
           <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} userRole={currentUser?.role} />
         </div>
@@ -288,12 +302,55 @@ export default function AuditLogsPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {loading && <div className="py-12 text-center text-muted-foreground animate-pulse">Loading audit history...</div>}
+              {loading && (
+                <div className="p-4 space-y-4">
+                  <div className="animate-pulse flex items-center justify-between gap-4">
+                    <div className="h-8 bg-muted/30 rounded w-1/3"></div>
+                    <div className="h-8 bg-muted/30 rounded w-1/6"></div>
+                  </div>
+
+                  <div className="rounded-md border border-border/40 bg-card/80 p-4">
+                    <div className="animate-pulse">
+                      <div className="flex flex-wrap gap-4 mb-4">
+                        <div className="h-10 bg-muted/30 rounded w-60"></div>
+                        <div className="h-10 bg-muted/30 rounded w-24"></div>
+                        <div className="h-10 bg-muted/30 rounded w-24"></div>
+                        <div className="h-10 bg-muted/30 rounded w-24"></div>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                          <thead>
+                            <tr>
+                              <th className="px-4 py-3"><div className="h-4 bg-muted/30 rounded w-36"></div></th>
+                              <th className="px-4 py-3"><div className="h-4 bg-muted/30 rounded w-28"></div></th>
+                              <th className="px-4 py-3"><div className="h-4 bg-muted/30 rounded w-48"></div></th>
+                              <th className="px-4 py-3"><div className="h-4 bg-muted/30 rounded w-48"></div></th>
+                              <th className="px-4 py-3"><div className="h-4 bg-muted/30 rounded w-8"></div></th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/50">
+                            {Array.from({ length: 6 }).map((_, i) => (
+                              <tr key={i} className="animate-pulse">
+                                <td className="px-4 py-3"><div className="h-4 bg-muted/20 rounded w-28"></div></td>
+                                <td className="px-4 py-3"><div className="h-4 bg-muted/20 rounded w-20"></div></td>
+                                <td className="px-4 py-3"><div className="h-4 bg-muted/20 rounded w-40"></div></td>
+                                <td className="px-4 py-3"><div className="h-4 bg-muted/20 rounded w-40"></div></td>
+                                <td className="px-4 py-3 text-right"><div className="h-8 w-8 bg-muted/20 rounded-full mx-auto"></div></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               {error && <div className="p-4 m-4 rounded-md bg-destructive/10 text-destructive text-sm font-medium">{error}</div>}
 
               {!loading && !error && (
                 <>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto overflow-y-auto max-h-[60vh]">
                     <table className="w-full text-sm text-left">
                       <thead className="bg-muted/30 text-muted-foreground/70 font-medium">
                         <tr>

@@ -22,7 +22,7 @@ function SmallJSON({ object }) {
 function FieldDiff({ label, before, after }) {
     if (before === after) return null;
     return (
-        <div className="grid grid-cols-[100px_1fr_1fr] gap-2 text-sm border-b border-border/40 py-2 last:border-0">
+        <div className="grid grid-cols-[300px_1fr_1fr] gap-2 text-sm border-b border-border/40 py-2 last:border-0">
             <div className="text-muted-foreground font-medium">{label}</div>
             <div className="text-red-500/80 bg-red-500/10 px-2 py-0.5 rounded line-through w-fit h-fit text-xs">
                 {String(before ?? '—')}
@@ -275,7 +275,7 @@ export default function AuditLogDetails({ details, action }) {
                 {/* Field-level summary */}
                 {changedKeys.length > 0 && (
                     <div className="rounded-md border bg-background/50">
-                        <div className="grid grid-cols-[100px_1fr_1fr] gap-2 px-3 py-2 bg-muted/30 text-xs font-semibold text-muted-foreground border-b">
+                        <div className="grid grid-cols-[300px_1fr_1fr] gap-2 px-3 py-2 bg-muted/30 text-xs font-semibold text-muted-foreground border-b">
                             <div>Field</div>
                             <div>Before</div>
                             <div>After</div>

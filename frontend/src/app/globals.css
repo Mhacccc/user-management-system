@@ -119,6 +119,9 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html, body {
+    @apply overflow-hidden h-screen;
+  }
   body {
     @apply bg-background text-foreground;
     /* subtle radial highlights for depth in dark mode */

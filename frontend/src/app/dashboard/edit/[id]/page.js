@@ -17,6 +17,7 @@ export default function EditUserPage() {
     const [error, setError] = useState("");
     const [user, setUser] = useState({ name: "", email: "", role: "user" });
     const [currentUser, setCurrentUser] = useState(null);
+    const [passwords, setPasswords] = useState({ newPassword: '', confirmPassword: '' });
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -53,14 +54,30 @@ export default function EditUserPage() {
         setUser({ ...user, [e.target.name]: e.target.value });
     };
 
+    const handlePasswordChange = (e) => {
+        setPasswords({ ...passwords, [e.target.name]: e.target.value });
+    };
+
     const handleSave = async (e) => {
         e.preventDefault();
         setSaving(true);
         setError("");
 
         try {
+            // Validate password fields if admin is resetting
+            if (currentUser?.role === 'admin' && (passwords.newPassword || passwords.confirmPassword)) {
+                if (passwords.newPassword !== passwords.confirmPassword) {
+                    setError('Passwords do not match');
+                    setSaving(false);
+                    return;
+                }
+            }
+
             // Filter out empty password if not changing
             const dataToSend = { ...user };
+            if (currentUser?.role === 'admin' && passwords.newPassword) {
+                dataToSend.password = passwords.newPassword;
+            }
             if (!dataToSend.password) delete dataToSend.password;
 
             await updateUser(params.id, dataToSend);
@@ -74,17 +91,35 @@ export default function EditUserPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-muted flex items-center justify-center">
-                <div className="animate-pulse text-muted-foreground">Loading user details...</div>
+            <div className="min-h-[calc(100vh-64px)] bg-muted/30 px-4 py-8">
+                <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8">
+                    <div>
+                        <div className="h-full md:min-h-[calc(100vh-64px)] bg-background/0"></div>
+                    </div>
+                    <div>
+                        <div className="animate-pulse space-y-4">
+                            <div className="h-8 bg-muted/30 rounded w-1/3"></div>
+                            <div className="rounded-md border border-border/40 bg-card/80 p-4">
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="h-10 bg-muted/20 rounded"></div>
+                                    <div className="h-10 bg-muted/20 rounded"></div>
+                                    <div className="h-10 bg-muted/20 rounded"></div>
+                                    <div className="h-10 bg-muted/20 rounded"></div>
+                                </div>
+                                <div className="mt-4 h-12 bg-muted/20 rounded"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }
 
     return (
         <div className="min-h-[calc(100vh-64px)] bg-muted/30 px-4 py-8">
-            <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-[240px_1fr] lg:grid-cols-[260px_1fr] gap-8">
+            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-[260px_1fr] gap-8">
                 <div>
-                    <Sidebar />
+                    <Sidebar userRole={currentUser?.role} />
                 </div>
 
                 <div className="flex justify-center md:block">
@@ -128,6 +163,7 @@ export default function EditUserPage() {
 
                                 {/* Only Admin can change Roles */}
                                 {currentUser?.role === 'admin' && (
+                                    <>
                                     <div className="space-y-2">
                                         <Label htmlFor="role">Role</Label>
                                         <div className="relative">
@@ -145,6 +181,17 @@ export default function EditUserPage() {
                                         </div>
                                         <p className="text-[0.8rem] text-muted-foreground">Admins have full access to all system resources.</p>
                                     </div>
+
+                                    <div className="space-y-2 pt-4">
+                                        <Label htmlFor="newPassword">New Password (reset)</Label>
+                                        <Input id="newPassword" name="newPassword" type="password" placeholder="Enter new password" value={passwords.newPassword} onChange={handlePasswordChange} />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="confirmPassword">Confirm Password</Label>
+                                        <Input id="confirmPassword" name="confirmPassword" type="password" placeholder="Confirm new password" value={passwords.confirmPassword} onChange={handlePasswordChange} />
+                                    </div>
+                                    </>
                                 )}
 
                                 <div className="pt-4 flex items-center justify-end gap-3">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getUsers, deleteUser, createUser, getUserSession, getDashboardStats } from "@/lib/api";
+import { getUsers, deleteUser, createUser, updateUser, getUserSession, getDashboardStats } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,16 +16,32 @@ export default function DashboardPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [currentUser, setCurrentUser] = useState({ id: null, role: 'user' });
+  const [currentUser, setCurrentUser] = useState({ id: null, role: null });
   const [showAddModal, setShowAddModal] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'user' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'user' });
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', email: '', role: 'user', newPassword: '', confirmPassword: '' });
+  const [editFormError, setEditFormError] = useState('');
+  const [editFormLoading, setEditFormLoading] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
+
+  // Load cached role on mount to avoid hydration mismatch
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const cachedRole = localStorage.getItem('userRole');
+      const cachedId = localStorage.getItem('userId');
+      if (cachedRole && !currentUser.role) {
+        setCurrentUser({ id: cachedId || null, role: cachedRole });
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,6 +52,9 @@ export default function DashboardPage() {
         const sessionRes = await getUserSession();
         if (sessionRes.data?.user) {
           setCurrentUser(sessionRes.data.user);
+          // Cache user role in localStorage
+          localStorage.setItem('userRole', sessionRes.data.user.role);
+          localStorage.setItem('userId', sessionRes.data.user.id);
         }
 
         // Fetch users and stats concurrently
@@ -64,8 +83,58 @@ export default function DashboardPage() {
   }, [router]);
 
 
-  const handleEdit = (id) => {
-    router.push(`/dashboard/edit/${id}`);
+  const handleEdit = (user) => {
+    setEditingUserId(user._id);
+    setEditForm({
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setEditFormError('');
+    setShowEditModal(true);
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    setEditFormError('');
+    setEditFormLoading(true);
+
+    try {
+      // Validate password fields if admin is resetting
+      if (currentUser?.role === 'admin' && (editForm.newPassword || editForm.confirmPassword)) {
+        if (editForm.newPassword !== editForm.confirmPassword) {
+          setEditFormError('Passwords do not match');
+          setEditFormLoading(false);
+          return;
+        }
+      }
+
+      const dataToSend = {
+        name: editForm.name,
+        email: editForm.email,
+        role: editForm.role
+      };
+
+      if (currentUser?.role === 'admin' && editForm.newPassword) {
+        dataToSend.password = editForm.newPassword;
+      }
+
+      await updateUser(editingUserId, dataToSend);
+
+      // Refresh users list
+      const res = await getUsers();
+      setUsers(res.data || []);
+
+      setShowEditModal(false);
+      setEditingUserId(null);
+      setEditForm({ name: '', email: '', role: 'user', newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      setEditFormError(err?.response?.data?.message || err?.message || 'Failed to update user');
+    } finally {
+      setEditFormLoading(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -79,6 +148,7 @@ export default function DashboardPage() {
   };
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleEditChange = (e) => setEditForm({ ...editForm, [e.target.name]: e.target.value });
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
@@ -87,13 +157,18 @@ export default function DashboardPage() {
       setFormError('Name, email and password are required');
       return;
     }
+
+    if (form.password !== form.confirmPassword) {
+      setFormError('Passwords do not match');
+      return;
+    }
     setFormLoading(true);
     try {
       await createUser(form);
       const res = await getUsers();
       setUsers(res.data || []);
       setShowAddModal(false);
-      setForm({ name: '', email: '', password: '', role: 'user' });
+      setForm({ name: '', email: '', password: '', confirmPassword: '', role: 'user' });
     } catch (err) {
       setFormError(err?.response?.data?.message || err?.response?.data?.error || err?.message || 'Failed to create user');
     } finally {
@@ -240,6 +315,10 @@ export default function DashboardPage() {
                     <Input id="password" name="password" type="password" value={form.password} onChange={handleChange} />
                   </div>
                   <div>
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input id="confirmPassword" name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} />
+                  </div>
+                  <div>
                     <Label htmlFor="role">Role</Label>
                     <select id="role" name="role" value={form.role} onChange={handleChange} className="w-full rounded-md border px-3 py-2">
                       <option value="user" className="text-neutral-600">User</option>
@@ -249,6 +328,57 @@ export default function DashboardPage() {
                   <div className="mt-4 flex justify-end gap-2">
                     <Button type="button" variant="ghost" onClick={() => setShowAddModal(false)}>Cancel</Button>
                     <Button type="submit" disabled={formLoading}>{formLoading ? 'Creating...' : 'Create'}</Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {showEditModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black/60" onClick={() => setShowEditModal(false)} />
+              <div className="relative z-10 w-full max-w-md rounded-xl bg-background p-6 shadow-2xl border border-input/20">
+                <h2 className="text-lg font-semibold mb-2">Edit user</h2>
+                <p className="text-sm text-muted-foreground mb-4">Update user details.</p>
+                {editFormError && <p className="text-sm text-red-500 mb-2">{editFormError}</p>}
+                <form onSubmit={handleUpdateUser} className="space-y-3">
+                  <div>
+                    <Label htmlFor="edit-name">Name</Label>
+                    <Input id="edit-name" name="name" value={editForm.name} onChange={handleEditChange} />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-email">Email</Label>
+                    <Input id="edit-email" name="email" type="email" value={editForm.email} onChange={handleEditChange} />
+                  </div>
+
+                  {currentUser?.role === 'admin' && (
+                    <>
+                      <div>
+                        <Label htmlFor="edit-role">Role</Label>
+                        <select id="edit-role" name="role" value={editForm.role} onChange={handleEditChange} className="w-full rounded-md border px-3 py-2">
+                          <option value="user" className="text-neutral-600">User</option>
+                          <option value="admin" className="text-neutral-600">Admin</option>
+                        </select>
+                      </div>
+                      <div className="pt-2 border-t mt-2">
+                        <p className="text-xs text-muted-foreground mb-2">Reset Password (Optional)</p>
+                        <div className="space-y-2">
+                          <div>
+                            <Label htmlFor="edit-newPassword">New Password</Label>
+                            <Input id="edit-newPassword" name="newPassword" type="password" placeholder="Leave empty to keep current" value={editForm.newPassword} onChange={handleEditChange} />
+                          </div>
+                          <div>
+                            <Label htmlFor="edit-confirmPassword">Confirm Password</Label>
+                            <Input id="edit-confirmPassword" name="confirmPassword" type="password" placeholder="Confirm new password" value={editForm.confirmPassword} onChange={handleEditChange} />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="mt-4 flex justify-end gap-2">
+                    <Button type="button" variant="ghost" onClick={() => setShowEditModal(false)}>Cancel</Button>
+                    <Button type="submit" disabled={editFormLoading}>{editFormLoading ? 'Saving...' : 'Save Changes'}</Button>
                   </div>
                 </form>
               </div>
@@ -273,11 +403,45 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {loading && <p>Loading users...</p>}
+              {loading && (
+                <div className="p-4 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div className="h-20 rounded-md bg-muted/30 animate-pulse" />
+                    <div className="h-20 rounded-md bg-muted/30 animate-pulse" />
+                    <div className="h-20 rounded-md bg-muted/30 animate-pulse" />
+                    <div className="h-20 rounded-md bg-muted/30 animate-pulse" />
+                  </div>
+
+                  <div className="rounded-md border border-border/40 bg-card/80 p-4">
+                    <div className="overflow-x-auto">
+                      <table className="w-full table-auto border-collapse">
+                        <thead>
+                          <tr className="text-left border-b">
+                            <th className="py-3 text-sm text-muted-foreground"><div className="h-4 bg-muted/30 rounded w-32"></div></th>
+                            <th className="py-3 text-sm text-muted-foreground"><div className="h-4 bg-muted/30 rounded w-40"></div></th>
+                            <th className="py-3 text-sm text-muted-foreground"><div className="h-4 bg-muted/30 rounded w-24"></div></th>
+                            <th className="py-3 text-sm text-muted-foreground"><div className="h-4 bg-muted/30 rounded w-24"></div></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {Array.from({ length: 6 }).map((_, i) => (
+                            <tr key={i} className="animate-pulse">
+                              <td className="py-4"><div className="h-4 bg-muted/20 rounded w-48"></div></td>
+                              <td className="py-4"><div className="h-4 bg-muted/20 rounded w-56"></div></td>
+                              <td className="py-4"><div className="h-4 bg-muted/20 rounded w-24"></div></td>
+                              <td className="py-4"><div className="h-4 bg-muted/20 rounded w-24"></div></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
               {error && <p className="text-sm text-red-500">{error}</p>}
 
               {!loading && !error && (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-auto max-h-[60vh]">
                   <table className="w-full table-auto border-collapse">
                     <thead>
                       <tr className="text-left border-b">
@@ -318,7 +482,7 @@ export default function DashboardPage() {
                           <td className="py-4">
                             {currentUser?.role === 'admin' && (
                               <div className="flex gap-2">
-                                {currentUser?.id !== u._id && <Button size="sm" onClick={() => handleEdit(u._id)}>Edit</Button>}
+                                {currentUser?.id !== u._id && <Button size="sm" onClick={() => handleEdit(u)}>Edit</Button>}
                                 {currentUser?.id !== u._id && <Button size="sm" variant="destructive" onClick={() => handleDelete(u._id)}>Delete</Button>}
                               </div>
                             )}

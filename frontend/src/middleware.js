@@ -10,7 +10,7 @@ export async function middleware(request) {
     const { pathname } = request.nextUrl;
 
     // Define protected routes
-    const protectedRoutes = ["/dashboard", "/auditlogs"];
+    const protectedRoutes = ["/dashboard", "/auditlogs", "/settings"];
     const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
 
     if (isProtected && !session.user) {

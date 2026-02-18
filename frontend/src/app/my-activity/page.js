@@ -63,12 +63,23 @@ export default function MyActivityPage() {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [currentUser, setCurrentUser] = useState({ id: null, role: 'user' });
+    const [currentUser, setCurrentUser] = useState({ id: null, role: null });
     const [query, setQuery] = useState('');
     const [actionFilter, setActionFilter] = useState('all');
     const [expanded, setExpanded] = useState({});
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const router = useRouter();
+
+    // Load cached role on mount to avoid hydration mismatch
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const cachedRole = localStorage.getItem('userRole');
+            const cachedId = localStorage.getItem('userId');
+            if (cachedRole && !currentUser.role) {
+                setCurrentUser({ id: cachedId || null, role: cachedRole });
+            }
+        }
+    }, []);
 
     useEffect(() => {
         const fetch = async () => {
@@ -78,6 +89,9 @@ export default function MyActivityPage() {
                 const sessionRes = await getUserSession();
                 if (sessionRes.data?.user) {
                     setCurrentUser(sessionRes.data.user);
+                    // Cache user role in localStorage
+                    localStorage.setItem('userRole', sessionRes.data.user.role);
+                    localStorage.setItem('userId', sessionRes.data.user.id);
                 }
 
                 const res = await getMyActivity();
@@ -185,7 +199,22 @@ export default function MyActivityPage() {
 
                         <CardContent className="p-0">
                             {loading ? (
-                                <div className="p-8 text-center text-muted-foreground">Loading your activity...</div>
+                                <div className="p-4 space-y-4">
+                                    <div className="animate-pulse">
+                                        <div className="h-8 bg-muted/30 rounded w-1/3 mb-4"></div>
+                                        <div className="grid gap-3">
+                                            {Array.from({ length: 6 }).map((_, i) => (
+                                                <div key={i} className="flex items-start gap-4">
+                                                    <div className="h-8 w-8 rounded-full bg-muted/20"></div>
+                                                    <div className="flex-1">
+                                                        <div className="h-4 bg-muted/20 rounded w-1/2 mb-2"></div>
+                                                        <div className="h-3 bg-muted/20 rounded w-1/3"></div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
                             ) : error ? (
                                 <div className="p-8 text-center text-red-500">{error}</div>
                             ) : filtered.length === 0 ? (
